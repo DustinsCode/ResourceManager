@@ -3,6 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import networkx as nx
 
+PAUSE_VAL = 1
 
 class ResMan:
     """
@@ -62,6 +63,8 @@ class ResMan:
         """
         Draws the current state
         """
+        plt.clf()
+        plt.axis('off')
         # G = nx.DiGraph()
         # get list of processes and resources
         processes = self.processDict.keys()
@@ -73,8 +76,8 @@ class ResMan:
                 edges.append((value,key))
 
         # print(processes)
-        print("edges: ", edges)
-        print("waitingList: ", self.waitingList)
+        # print("edges: ", edges)
+        # print("waitingList: ", self.waitingList)
 
         self.G.add_nodes_from(processes + self.resourceList)
         # self.G.add_edges_from(edges, color='g')
@@ -89,6 +92,7 @@ class ResMan:
                             node_color='r',node_size=600,with_labels=True,
                             label="Processes",edgelist=self.waitingList,edge_color='b',
                             alpha=1)
+        plt.waitforbuttonpress()
 
     def step(self):
         """
@@ -106,25 +110,35 @@ class ResMan:
         res = thisStep[2]
 
         # print("Nodes in G: ", self.G.nodes(data=True))
-        print("Edges in G: ", self.G.edges(data=True))
+        # print("Edges in G: ", self.G.edges(data=True))
         # make sure resource is not already held
         if cmd == "requests":
             # handle requests
-            for list in self.processDict.values():
-
-                if res in list:
-                    self.waitingList.append((proc, res))
-                    self.draw()
-                    return
+            if res in self.usedResources:
+                self.waitingList.append((proc, res))
+                self.draw()
+                return
 
             self.processDict[proc].append(res)
+            self.usedResources.append(res)
         elif cmd == "releases":
             # Assume if trying to release, the process has control already
             self.G.remove_edge(res,proc)
             self.processDict[proc].remove(res)
+            self.usedResources.remove(res)
+            self.draw()
             # search waiting list for that resource
+            for tuple in self.waitingList:
+                if res in tuple:
+                    self.processDict[tuple[0]].append(res)
+                    self.usedResources.append(res)
+                    self.waitingList.remove(tuple)
+                    #redraw to show the step of another process taking its turn
+                    self.draw()
+                    # plt.pause(PAUSE_VAL)
+                    break
 
-        print(self.processDict)
+        # print(self.processDict)
         self.draw()
 
     def main(self):
@@ -135,11 +149,8 @@ class ResMan:
         # plt.legend()      looks weird  TODO: fix if I have time
         plt.show()
         for i in range(0,len(self.contents)-1):
-            plt.clf()
-            plt.axis('off')
             self.step()
-            plt.pause(1)
-
+            # plt.waitforbuttonpress()
         raw_input("Press enter to quit..")
 
 
